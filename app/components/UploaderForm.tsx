@@ -5,13 +5,14 @@ import { upload } from '@vercel/blob/client';
 import LoadingButton from './LoadingButton';
 import Image from 'next/image';
 import copyIcon from '../assets/copy.svg'
-
-
+import doneIcon from '../assets/done.svg'
 
 export default function UploaderForm() {
     const inputFileRef = useRef<HTMLInputElement>(null);
     const [blob, setBlob] = useState<PutBlobResult | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [copied, setCopied] = useState(false);
+    const [error, setError] = useState<null|string>(null);
 
     const copyToClipboard = React.useCallback((text:string|null)=>{
         if(text === null) return
@@ -36,31 +37,42 @@ export default function UploaderForm() {
                 document.body.removeChild(textarea);
             }
         }
+        setCopied(true)
+    },[])
+
+    const onSubmit = React.useCallback(async(event:React.FormEvent<HTMLFormElement>)=>{
+        event.preventDefault();
+                    
+        setCopied(false)
+        setIsLoading(true)
+        !!blob && setBlob(null)
+        !!error && setError(null)
+
+        if (!inputFileRef.current?.files) {
+            throw new Error('No file selected');
+        }
+
+        const file = inputFileRef.current.files[0];
+
+        try{
+            const newBlob = await upload(file.name, file, {
+                access: 'public',
+                handleUploadUrl: '/api/upload',
+            });
+    
+            setBlob(newBlob);
+        }catch(e){
+            const err = e as {message?:string}
+            setError(err?.message || "something went wrong!!!")
+        }
+        setIsLoading(false)
     },[])
 
     return (    
         <div className="max-w-md mx-auto mt-10 p-4 border rounded-md shadow-md">
             <h1 className="text-2xl font-semibold mb-6">Image Upload Form</h1>
             <form
-                onSubmit={async (event) => {
-                    event.preventDefault();
-                    setIsLoading(true)
-                    !!blob && setBlob(null)
-
-                    if (!inputFileRef.current?.files) {
-                        throw new Error('No file selected');
-                    }
-
-                    const file = inputFileRef.current.files[0];
-
-                    const newBlob = await upload(file.name, file, {
-                        access: 'public',
-                        handleUploadUrl: '/api/upload',
-                    });
-
-                    setIsLoading(false)
-                    setBlob(newBlob);
-                }}
+                onSubmit={onSubmit}
             >
                 <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-600">Select Image:</label>
@@ -72,14 +84,26 @@ export default function UploaderForm() {
                 >
                     Upload Image
                 </LoadingButton>
+                {
+                    !!error && 
+                    <p className="text-sm font-medium text-red-600 line-clamp-1 my-2">
+                        {
+                            error 
+                        }
+                    </p>
+                }
             </form>
             {
                 blob && (
-                <div className="flex space-x-3">
-                    <p className="text-sm font-medium text-gray-600 line-clamp-1 m-2">
+                <div className="flex space-x-3 my-2">
+                    <p className="text-sm font-medium text-gray-600 line-clamp-1">
                         Blob url: <a href={blob.url}>{blob.url}</a>
                     </p>
-                    <Image className='hover:cursor-pointer' src={copyIcon} alt="" width={20} height={20} onClick={()=>copyToClipboard(blob.url)}/>
+                    {
+                        copied?
+                        <Image className='hover:cursor-pointer fill-green-500' src={doneIcon} alt="" width={20} height={20}/>:
+                        <Image className='hover:cursor-pointer' src={copyIcon} alt="" width={20} height={20} onClick={()=>copyToClipboard(blob.url)}/>
+                    }
                 </div>
             )}
         </div> 
