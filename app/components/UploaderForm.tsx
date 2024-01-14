@@ -96,7 +96,7 @@ export default function UploaderForm() {
             {
                 blob && (
                 <div className="flex space-x-3 my-2">
-                    <p className="text-sm font-medium text-gray-600 line-clamp-1">
+                    <p className="text-sm font-medium text-gray-600 line-clamp-1 flex-grow">
                         Blob url: <a href={blob.url}>{blob.url}</a>
                     </p>
                     {
